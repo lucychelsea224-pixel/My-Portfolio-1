@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --ink:   #1a1a18;
+      --cream: #f5f0e8;
+      --rust:  #c0392b;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: #111110;
+      color: #e5ddd0;
+    }
+
+    .font-display { font-family: 'Playfair Display', serif; }
+    .font-mono-dm { font-family: 'DM Mono', monospace; }
+
+    /* Noise overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Grid pattern background */
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Input styles */
+    .admin-input {
+      background: #1e1e1c;
+      border: 1px solid #2e2e2a;
+      color: #e5ddd0;
+      font-family: 'DM Sans', sans-serif;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      width: 100%;
+      outline: none;
+    }
+    .admin-input:focus {
+      border-color: #c0392b;
+      box-shadow: 0 0 0 3px rgba(192,57,43,0.15);
+    }
+    .admin-input::placeholder { color: #555; }
+
+    /* Skill tag */
+    .skill-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #2a2a28;
+      border: 1px solid #3a3a36;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #a0998e;
+    }
+    .skill-tag button {
+      color: #555;
+      line-height: 1;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .skill-tag button:hover { color: #c0392b; }
+
+    /* Primary button */
+    .btn-primary {
+      background: #c0392b;
+      color: #fff;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 11px;
+      transition: background 0.2s ease, transform 0.15s ease;
+      cursor: pointer;
+    }
+    .btn-primary:hover:not(:disabled) { background: #a93226; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Secondary button */
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #3a3a36;
+      color: #a0998e;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 11px;
+      transition: border-color 0.2s, color 0.2s;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { border-color: #c0392b; color: #c0392b; }
+
+    /* Toast */
+    #toast {
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    #toast.hidden-toast {
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+    }
+
+    /* Card */
+    .admin-card {
+      background: #161614;
+      border: 1px solid #2a2a28;
+    }
+
+    /* Login card */
+    .login-card {
+      background: #161614;
+      border: 1px solid #2a2a28;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    }
+
+    /* Spin animation */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 0.8s linear infinite; }
+
+    /* Sidebar active */
+    .sidebar-link.active {
+      color: #c0392b;
+      border-left: 2px solid #c0392b;
+      padding-left: 14px;
+    }
+
+    label { font-family: 'DM Mono', monospace; }
+  </style>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink:   '#1a1a18',
+            cream: '#f5f0e8',
+            rust:  '#c0392b',
+          }
+        }
+      }
+    };
+  </script>
+</head>
+
+<body class="min-h-screen grid-bg">
+
+  <!-- ════════════════════════════════════════
+       TOAST NOTIFICATION
+  ════════════════════════════════════════ -->
+  <div id="toast"
+       class="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-5 py-3 rounded-none border text-sm font-mono-dm hidden-toast"
+       style="background:#1e1e1c; border-color:#2e2e2a; min-width:260px;">
+    <span id="toast-icon" class="text-lg">✓</span>
+    <span id="toast-msg">Saved successfully.</span>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       LOGIN SCREEN
+  ════════════════════════════════════════ -->
+  <div id="login-screen"
+       class="min-h-screen flex items-center justify-center px-4">
+
+    <div class="login-card w-full max-w-sm p-10 relative">
+      <!-- Corner accent -->
+      <div class="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-rust opacity-60"></div>
+      <div class="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-rust opacity-60"></div>
+
+      <p class="font-mono-dm text-[10px] tracking-[0.4em] uppercase text-stone-600 mb-2">Admin Access</p>
+      <h1 class="font-display text-4xl font-bold text-cream mb-1">Sign In<span class="text-rust">.</span></h1>
+      <p class="font-mono-dm text-xs text-stone-600 mb-8">Restricted area — authorised users only.</p>
+
+      <div class="space-y-5">
+        <div>
+          <label class="block text-[10px] tracking-[0.25em] uppercase text-stone-500 mb-2">Email</label>
+          <input id="login-email" type="email" placeholder="you@example.com"
+                 class="admin-input px-4 py-3 text-sm" autocomplete="email"/>
+        </div>
+        <div>
+          <label class="block text-[10px] tracking-[0.25em] uppercase text-stone-500 mb-2">Password</label>
+          <div class="relative">
+            <input id="login-password" type="password" placeholder="••••••••"
+                   class="admin-input px-4 py-3 pr-10 text-sm" autocomplete="current-password"/>
+            <button id="toggle-pw" type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-stone-600 hover:text-stone-300 transition-colors"
+                    aria-label="Toggle password visibility">
+              <svg id="eye-show" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <p id="login-error" class="text-rust text-xs font-mono-dm hidden"></p>
+
+        <button id="login-btn"
+                class="btn-primary w-full py-3 flex items-center justify-center gap-2">
+          <span id="login-btn-text">Sign In</span>
+          <svg id="login-spinner" class="w-4 h-4 spin hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10" stroke-width="2" stroke-dasharray="32" stroke-dashoffset="12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       DASHBOARD (hidden until logged in)
+  ════════════════════════════════════════ -->
+  <div id="dashboard" class="hidden min-h-screen flex flex-col">
+
+    <!-- Top Bar -->
+    <header class="flex items-center justify-between px-8 py-4 border-b border-stone-800" style="background:#0e0e0c;">
+      <div class="flex items-center gap-4">
+        <span class="font-display text-xl font-bold text-cream">Admin<span class="text-rust">.</span></span>
+        <span class="font-mono-dm text-[10px] tracking-widest uppercase text-stone-600 border border-stone-800 px-2 py-0.5">Dashboard</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span id="user-email" class="font-mono-dm text-xs text-stone-500"></span>
+        <a href="../index.html"
+           class="font-mono-dm text-[10px] tracking-widest uppercase text-stone-600 hover:text-cream transition-colors">
+          ← Portfolio
+        </a>
+        <button id="logout-btn"
+                class="btn-secondary px-4 py-2">
+          Sign Out
+        </button>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <div class="flex flex-1 overflow-hidden">
+
+      <!-- Sidebar -->
+      <aside class="w-56 border-r border-stone-800 py-8 px-6 flex-shrink-0" style="background:#0e0e0c;">
+        <nav class="space-y-1">
+          <p class="font-mono-dm text-[9px] tracking-[0.35em] uppercase text-stone-700 mb-4">Content</p>
+          <a href="#" class="sidebar-link active block py-2 pl-4 font-mono-dm text-xs tracking-wider uppercase text-stone-300 hover:text-cream transition-colors"
+             data-section="profile">Profile</a>
+          <a href="#" class="sidebar-link block py-2 pl-4 border-l border-transparent font-mono-dm text-xs tracking-wider uppercase text-stone-500 hover:text-cream transition-colors"
+             data-section="about">About</a>
+          <a href="#" class="sidebar-link block py-2 pl-4 border-l border-transparent font-mono-dm text-xs tracking-wider uppercase text-stone-500 hover:text-cream transition-colors"
+             data-section="skills">Skills</a>
+        </nav>
+
+        <div class="mt-12">
+          <p class="font-mono-dm text-[9px] tracking-[0.35em] uppercase text-stone-700 mb-4">Status</p>
+          <div class="flex items-center gap-2">
+            <span id="status-dot" class="w-1.5 h-1.5 rounded-full bg-stone-600"></span>
+            <span id="status-text" class="font-mono-dm text-[10px] text-stone-600">Idle</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="flex-1 overflow-y-auto p-10">
+        <div class="max-w-2xl mx-auto space-y-8">
+
+          <!-- Page heading -->
+          <div>
+            <h2 class="font-display text-3xl font-bold text-cream mb-1">Portfolio Content</h2>
+            <p class="font-mono-dm text-xs text-stone-600">
+              Changes are saved directly to Firestore and reflected on your live portfolio.
+            </p>
+          </div>
+
+          <!-- ── CARD: Profile Description ── -->
+          <div id="section-profile" class="admin-card p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-6 h-6 border border-rust flex items-center justify-center flex-shrink-0">
+                <span class="font-mono-dm text-[9px] text-rust">01</span>
+              </div>
+              <h3 class="font-mono-dm text-xs tracking-[0.25em] uppercase text-stone-300">Profile Description</h3>
+            </div>
+            <p class="text-stone-600 text-xs font-mono-dm mb-5">
+              The short tagline shown on the hero section of your portfolio.
+            </p>
+            <label class="block text-[10px] tracking-[0.25em] uppercase text-stone-500 mb-2">Description</label>
+            <textarea id="profile-description"
+                      rows="3"
+                      placeholder="e.g. Full-stack developer with a passion for building clean, scalable web apps."
+                      class="admin-input px-4 py-3 text-sm resize-none leading-relaxed"></textarea>
+          </div>
+
+          <!-- ── CARD: About Me ── -->
+          <div id="section-about" class="admin-card p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-6 h-6 border border-rust flex items-center justify-center flex-shrink-0">
+                <span class="font-mono-dm text-[9px] text-rust">02</span>
+              </div>
+              <h3 class="font-mono-dm text-xs tracking-[0.25em] uppercase text-stone-300">About Me</h3>
+            </div>
+            <p class="text-stone-600 text-xs font-mono-dm mb-5">
+              The longer biography paragraph in the About section.
+            </p>
+            <label class="block text-[10px] tracking-[0.25em] uppercase text-stone-500 mb-2">Bio</label>
+            <textarea id="about-me"
+                      rows="6"
+                      placeholder="Write a compelling paragraph about yourself, your background, and what drives you..."
+                      class="admin-input px-4 py-3 text-sm resize-none leading-relaxed"></textarea>
+          </div>
+
+          <!-- ── CARD: Skills ── -->
+          <div id="section-skills" class="admin-card p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-6 h-6 border border-rust flex items-center justify-center flex-shrink-0">
+                <span class="font-mono-dm text-[9px] text-rust">03</span>
+              </div>
+              <h3 class="font-mono-dm text-xs tracking-[0.25em] uppercase text-stone-300">Highlighted Skills</h3>
+            </div>
+            <p class="text-stone-600 text-xs font-mono-dm mb-5">
+              Tags shown in your portfolio's skills grid. Press Enter or comma to add.
+            </p>
+
+            <!-- Tag display -->
+            <div id="skills-tags" class="flex flex-wrap gap-2 mb-4 min-h-8"></div>
+
+            <!-- Tag input -->
+            <div class="flex gap-2">
+              <input id="skill-input" type="text"
+                     placeholder="e.g. TypeScript"
+                     class="admin-input flex-1 px-4 py-2.5 text-sm"/>
+              <button id="add-skill-btn" class="btn-primary px-5 py-2.5">Add</button>
+            </div>
+            <p class="font-mono-dm text-[10px] text-stone-700 mt-2">
+              Press <kbd class="px-1 py-0.5 border border-stone-700 rounded text-stone-500">Enter</kbd> or
+              <kbd class="px-1 py-0.5 border border-stone-700 rounded text-stone-500">,</kbd> to add quickly.
+            </p>
+          </div>
+
+          <!-- ── Save all button ── -->
+          <div class="flex items-center justify-between pt-2">
+            <button id="load-btn" class="btn-secondary px-6 py-3">
+              ↺ Reload from DB
+            </button>
+            <button id="save-btn" class="btn-primary px-8 py-3 flex items-center gap-2">
+              <span id="save-btn-text">Save All Changes</span>
+              <svg id="save-spinner" class="w-4 h-4 spin hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10" stroke-width="2" stroke-dasharray="32" stroke-dashoffset="12"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Last saved timestamp -->
+          <p id="last-saved" class="font-mono-dm text-[10px] text-stone-700 text-right"></p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       FIREBASE MODULE SCRIPT
+  ════════════════════════════════════════ -->
+  <script type="module">
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      setDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    /* ══════════════════════════════════════════════
+       🔥 PASTE YOUR FIREBASE CONFIG HERE
+    ══════════════════════════════════════════════ */
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8CUpyd1xuDhGNd6PA6B6c23ntXQTnCz0",
+  authDomain: "my-portfolio-6a81f.firebaseapp.com",
+  projectId: "my-portfolio-6a81f",
+  storageBucket: "my-portfolio-6a81f.firebasestorage.app",
+  messagingSenderId: "634327702113",
+  appId: "1:634327702113:web:dbbaac378af62ec564e820",
+  measurementId: "G-M0P2ZCK8GP"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    /* ─── Element refs ─── */
+    const loginScreen  = document.getElementById("login-screen");
+    const dashboard    = document.getElementById("dashboard");
+    const loginEmail   = document.getElementById("login-email");
+    const loginPw      = document.getElementById("login-password");
+    const loginBtn     = document.getElementById("login-btn");
+    const loginBtnText = document.getElementById("login-btn-text");
+    const loginSpinner = document.getElementById("login-spinner");
+    const loginError   = document.getElementById("login-error");
+    const logoutBtn    = document.getElementById("logout-btn");
+    const userEmailEl  = document.getElementById("user-email");
+    const saveBtn      = document.getElementById("save-btn");
+    const saveBtnText  = document.getElementById("save-btn-text");
+    const saveSpinner  = document.getElementById("save-spinner");
+    const loadBtn      = document.getElementById("load-btn");
+    const lastSavedEl  = document.getElementById("last-saved");
+    const statusDot    = document.getElementById("status-dot");
+    const statusText   = document.getElementById("status-text");
+    const toast        = document.getElementById("toast");
+    const toastMsg     = document.getElementById("toast-msg");
+    const toastIcon    = document.getElementById("toast-icon");
+
+    /* Skill state */
+    let skills = [];
+
+    /* ─── Auth state observer ─── */
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        loginScreen.classList.add("hidden");
+        dashboard.classList.remove("hidden");
+        userEmailEl.textContent = user.email;
+        loadFromFirestore();
+      } else {
+        loginScreen.classList.remove("hidden");
+        dashboard.classList.add("hidden");
+      }
+    });
+
+    /* ─── Toggle password visibility ─── */
+    document.getElementById("toggle-pw").addEventListener("click", () => {
+      const isText = loginPw.type === "text";
+      loginPw.type = isText ? "password" : "text";
+    });
+
+    /* ─── Login ─── */
+    loginBtn.addEventListener("click", handleLogin);
+    loginPw.addEventListener("keydown", e => { if (e.key === "Enter") handleLogin(); });
+
+    async function handleLogin() {
+      const email    = loginEmail.value.trim();
+      const password = loginPw.value;
+      loginError.classList.add("hidden");
+
+      if (!email || !password) {
+        showLoginError("Please enter both email and password.");
+        return;
+      }
+
+      setLoginLoading(true);
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        const messages = {
+          "auth/invalid-credential":   "Invalid email or password.",
+          "auth/user-not-found":       "No account with that email.",
+          "auth/wrong-password":       "Incorrect password.",
+          "auth/too-many-requests":    "Too many attempts. Please wait.",
+          "auth/network-request-failed": "Network error. Check your connection.",
+        };
+        showLoginError(messages[err.code] || `Error: ${err.message}`);
+        setLoginLoading(false);
+      }
+    }
+
+    function showLoginError(msg) {
+      loginError.textContent = msg;
+      loginError.classList.remove("hidden");
+    }
+
+    function setLoginLoading(loading) {
+      loginBtn.disabled = loading;
+      loginBtnText.textContent = loading ? "Signing in…" : "Sign In";
+      loginSpinner.classList.toggle("hidden", !loading);
+    }
+
+    /* ─── Logout ─── */
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+    });
+
+    /* ─── Load from Firestore ─── */
+    async function loadFromFirestore() {
+      setStatus("loading", "Fetching…");
+      try {
+        const snap = await getDoc(doc(db, "portfolio", "profile"));
+        if (snap.exists()) {
+          const data = snap.data();
+          document.getElementById("profile-description").value = data.profileDescription || "";
+          document.getElementById("about-me").value = data.aboutMe || "";
+          skills = Array.isArray(data.skills) ? [...data.skills] : [];
+          renderSkillTags();
+          if (data.updatedAt?.toDate) {
+            lastSavedEl.textContent = `Last saved: ${data.updatedAt.toDate().toLocaleString()}`;
+          }
+        }
+        setStatus("idle", "Idle");
+        showToast("Data loaded from database.", "✓", "#3a8a5a");
+      } catch (err) {
+        console.error(err);
+        setStatus("error", "Load failed");
+        showToast("Could not load data. Check Firestore rules.", "⚠", "#c0392b");
+      }
+    }
+
+    loadBtn.addEventListener("click", loadFromFirestore);
+
+    /* ─── Save to Firestore ─── */
+    saveBtn.addEventListener("click", saveToFirestore);
+
+    async function saveToFirestore() {
+      const profileDescription = document.getElementById("profile-description").value.trim();
+      const aboutMe            = document.getElementById("about-me").value.trim();
+
+      if (!profileDescription && !aboutMe && !skills.length) {
+        showToast("Nothing to save. Fill in at least one field.", "!", "#b8962e");
+        return;
+      }
+
+      setSaveLoading(true);
+      setStatus("saving", "Saving…");
+
+      try {
+        await setDoc(
+          doc(db, "portfolio", "profile"),
+          {
+            profileDescription,
+            aboutMe,
+            skills,
+            updatedAt: serverTimestamp()
+          },
+          { merge: true }
+        );
+
+        lastSavedEl.textContent = `Last saved: ${new Date().toLocaleString()}`;
+        setStatus("idle", "Saved ✓");
+        showToast("All changes saved successfully!", "✓", "#3a8a5a");
+      } catch (err) {
+        console.error(err);
+        setStatus("error", "Save failed");
+        showToast(`Save failed: ${err.message}`, "✗", "#c0392b");
+      } finally {
+        setSaveLoading(false);
+      }
+    }
+
+    function setSaveLoading(loading) {
+      saveBtn.disabled = loading;
+      saveBtnText.textContent = loading ? "Saving…" : "Save All Changes";
+      saveSpinner.classList.toggle("hidden", !loading);
+    }
+
+    /* ─── Skills management ─── */
+    const skillInput   = document.getElementById("skill-input");
+    const addSkillBtn  = document.getElementById("add-skill-btn");
+    const skillTagsEl  = document.getElementById("skills-tags");
+
+    addSkillBtn.addEventListener("click", addSkill);
+    skillInput.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === ",") {
+        e.preventDefault();
+        addSkill();
+      }
+    });
+
+    function addSkill() {
+      const val = skillInput.value.trim().replace(/,$/, "");
+      if (!val) return;
+      if (skills.includes(val)) {
+        showToast(`"${val}" already in list.`, "!", "#b8962e");
+        skillInput.value = "";
+        return;
+      }
+      skills.push(val);
+      skillInput.value = "";
+      renderSkillTags();
+    }
+
+    function removeSkill(val) {
+      skills = skills.filter(s => s !== val);
+      renderSkillTags();
+    }
+
+    function renderSkillTags() {
+      skillTagsEl.innerHTML = "";
+      if (!skills.length) {
+        skillTagsEl.innerHTML = '<span class="font-mono-dm text-[10px] text-stone-700">No skills added yet.</span>';
+        return;
+      }
+      skills.forEach(skill => {
+        const tag = document.createElement("span");
+        tag.className = "skill-tag";
+        tag.innerHTML = `${skill} <button onclick="removeSkillProxy('${skill.replace(/'/g, "\\'")}')">✕</button>`;
+        skillTagsEl.appendChild(tag);
+      });
+    }
+
+    /* Proxy for onclick in dynamic HTML */
+    window.removeSkillProxy = removeSkill;
+
+    /* ─── Status indicator ─── */
+    function setStatus(state, label) {
+      const colors = { idle: "#3a8a5a", loading: "#b8962e", saving: "#b8962e", error: "#c0392b" };
+      statusDot.style.background  = colors[state] || "#555";
+      statusText.textContent = label;
+    }
+
+    /* ─── Toast ─── */
+    let toastTimer;
+    function showToast(msg, icon = "✓", borderColor = "#3a8a5a") {
+      clearTimeout(toastTimer);
+      toastMsg.textContent = msg;
+      toastIcon.textContent = icon;
+      toast.style.borderColor = borderColor;
+      toastIcon.style.color   = borderColor;
+      toast.classList.remove("hidden-toast");
+      toastTimer = setTimeout(() => toast.classList.add("hidden-toast"), 3500);
+    }
+
+    /* ─── Sidebar navigation ─── */
+    document.querySelectorAll(".sidebar-link").forEach(link => {
+      link.addEventListener("click", e => {
+        e.preventDefault();
+        document.querySelectorAll(".sidebar-link").forEach(l => {
+          l.classList.remove("active");
+          l.style.borderLeft   = "";
+          l.style.paddingLeft  = "";
+          l.style.color        = "";
+        });
+        link.classList.add("active");
+        const section = link.dataset.section;
+        const target = document.getElementById(`section-${section}`);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+
+  </script>
+
+</body>
+</html>
