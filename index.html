@@ -416,7 +416,7 @@
   ════════════════════════════════════════ -->
   <footer class="py-6 px-8 text-center" style="background:#111110;">
     <p class="font-mono-dm text-xs text-stone-600 tracking-widest">
-      © <span id="year"></span> Your Name · Built with Firebase &amp; Tailwind CSS
+      © <span id="year"></span> Adeniji Sunday Adekunle. Built with Firebase &amp; Tailwind CSS
     </p>
   </footer>
 
@@ -428,18 +428,11 @@
     document.getElementById("year").textContent = new Date().getFullYear();
 
     /* ════════════════════════════════════════
-       GITHUB PINNED REPOS (REST API)
-       Replace YOUR_GITHUB_USERNAME below.
+      
     ════════════════════════════════════════ */
     const GITHUB_USERNAME = "lucychelsea224-pixel";
 
-    /**
-     * fetchPinnedRepos()
-     * GitHub's REST API doesn't expose "pinned" repos directly.
-     * The standard approach is to fetch your most-starred public repos
-     * as a proxy for "pinned" work, or use GitHub GraphQL API.
-     * Replace this function with a GraphQL call or hardcode IDs if needed.
-     */
+  
     async function fetchPinnedRepos() {
       const statusEl = document.getElementById("projects-status");
       const gridEl   = document.getElementById("projects-grid");
